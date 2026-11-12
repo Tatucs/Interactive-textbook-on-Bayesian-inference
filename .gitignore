@@ -1,0 +1,53 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+.conda/
+
+# ---- Secrets / local config ----
+.env
+.env.*
+!.env.example
+
+# ---- Jupyter / JupyterLite ----
+.ipynb_checkpoints/
+_output/
+.jupyterlite.doit.db
+.cache/
+
+# ---- Node (if a JS/Pyodide frontend is added) ----
+node_modules/
+.vite/
+npm-debug.log*
+
+# ---- Editors / IDEs ----
+.vscode/
+.idea/
+*.swp
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Private plans / design docs ----
+plans/
+
+# ---- Local AI-tool state ----
+.remember/
+.claude/
+CLAUDE.md
+CLAUDE.local.md
