@@ -24,7 +24,7 @@ $headings-font-weight: 700;
 
 $navbar-bg:          $cream-2;
 $navbar-fg:          $brown;
-$sidebar-bg:         $cream;
+$sidebar-bg:         #efe2bc;
 $sidebar-fg:         $brown;
 $footer-bg:          $cream;
 
@@ -60,3 +60,15 @@ blockquote { color: $brown; border-left-color: $orange; }
 // OJS sliders and number boxes
 input[type=range] { accent-color: $rust; }
 form input[type=number] { background: $cream-2; color: $brown; border: 1px solid $sand-dark; }
+
+// side panels: darker than the page, full height, with a divider
+#quarto-sidebar, #quarto-margin-sidebar {
+  background: #efe2bc;
+  min-height: 100vh;
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+}
+#quarto-sidebar { border-right: 1px solid $sand-dark; }
+#quarto-margin-sidebar { border-left: 1px solid $sand-dark; }
+.sidebar-item .active, .sidebar-link.active { color: $red !important; font-weight: 600; }
+#quarto-sidebar .sidebar-search input, .aa-DetachedSearchButton { background: $cream-2; }

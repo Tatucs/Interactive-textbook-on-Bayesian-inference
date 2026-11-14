@@ -25,3 +25,7 @@ format:
   live-html:
     theme: [cosmo, theme.scss]
     toc: true
+    grid:
+      body-width: 1000px
+      sidebar-width: 270px
+      margin-width: 260px
