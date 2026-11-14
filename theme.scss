@@ -1,0 +1,62 @@
+/*-- scss:defaults --*/
+// Warm "parchment" palette.
+$cream:      #faf4d7;
+$cream-2:    #f6edc8;
+$sand:       #ebdcb2;
+$sand-dark:  #e0d6b6;
+$brown:      #5b4636;
+$red:        #c34a4a;
+$orange:     #e3884a;
+$rust:       #c0601a;
+$teal:       #6f9c99;
+
+$body-bg:            $cream;
+$body-color:         $brown;
+$headings-color:     $red;
+$link-color:         $rust;
+$primary:            $rust;
+$border-color:       $sand-dark;
+$code-color:         $teal;
+$code-bg:            $sand;
+$table-border-color: $sand-dark;
+$font-family-sans-serif: "Segoe UI", "Open Sans", system-ui, -apple-system, sans-serif;
+$headings-font-weight: 700;
+
+$navbar-bg:          $cream-2;
+$navbar-fg:          $brown;
+$sidebar-bg:         $cream;
+$sidebar-fg:         $brown;
+$footer-bg:          $cream;
+
+/*-- scss:rules --*/
+h1.title, .quarto-title h1 { color: $orange; }
+h2, h3 { color: $red; }
+strong { color: $rust; }
+em { color: $rust; }
+
+// inline code and code blocks
+code { background: $sand; color: $teal; border-radius: 4px; padding: 0.1em 0.3em; }
+pre, div.sourceCode, .cell-output pre { background: $sand !important; border: none; border-radius: 6px; }
+pre code { background: transparent; padding: 0; }
+
+// tables
+table { background: $cream-2; }
+thead th, table th { background: $sand-dark; color: $brown; }
+tbody tr:nth-child(odd) { background: #f3e6c0; }
+tbody tr:nth-child(even) { background: $cream-2; }
+
+// list markers
+ul li::marker { color: #b8826a; }
+
+// quarto-live editors and outputs
+.card, .exercise-editor, .cell-output-container { background: $cream-2; border-color: $sand-dark; }
+.card-header { background: $sand-dark; color: $brown; }
+.cm-editor { background: $cream-2; }
+
+// callouts
+.callout { background: $cream-2; }
+blockquote { color: $brown; border-left-color: $orange; }
+
+// OJS sliders and number boxes
+input[type=range] { accent-color: $rust; }
+form input[type=number] { background: $cream-2; color: $brown; border: 1px solid $sand-dark; }

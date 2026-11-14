@@ -23,5 +23,5 @@ website:
 
 format:
   live-html:
-    theme: cosmo
+    theme: [cosmo, theme.scss]
     toc: true
