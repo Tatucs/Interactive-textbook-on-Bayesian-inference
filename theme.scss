@@ -72,3 +72,20 @@ form input[type=number] { background: $cream-2; color: $brown; border: 1px solid
 #quarto-margin-sidebar { border-left: 1px solid $sand-dark; }
 .sidebar-item .active, .sidebar-link.active { color: $red !important; font-weight: 600; }
 #quarto-sidebar .sidebar-search input, .aa-DetachedSearchButton { background: $cream-2; }
+
+// extend the side-panel colour to the window edges (shadow trick, no layout change)
+@media (min-width: 992px) {
+  #quarto-sidebar { box-shadow: -100vw 0 0 100vw #efe2bc; clip-path: inset(0 0 0 -100vw); }
+}
+@media (min-width: 768px) {
+  #quarto-margin-sidebar { box-shadow: 100vw 0 0 100vw #efe2bc; clip-path: inset(0 -100vw 0 0); }
+}
+
+// make code cells and figures stand out from the page
+.exercise-editor, .card { border: 1px solid #d8c99c !important; box-shadow: 0 1px 4px rgba(91, 70, 54, 0.12); }
+.cm-editor, .cm-gutters, .cm-scroller { background: #ebdeb5 !important; }
+.cm-activeLine, .cm-activeLineGutter { background: #e4d5a8 !important; }
+.cm-gutters { border-right: 1px solid #ddd0a8 !important; }
+.cell-output-pyodide canvas, .cell-output-pyodide img {
+  border: 1px solid #d8c99c; border-radius: 6px; box-shadow: 0 1px 4px rgba(91, 70, 54, 0.12);
+}

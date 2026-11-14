@@ -23,8 +23,8 @@ try:
     import matplotlib as _mpl
 
     _mpl.rcParams.update({
-        "figure.facecolor": "#faf4d7",
-        "axes.facecolor": "#fffaf0",
+        "figure.facecolor": "#f1e5c2",
+        "axes.facecolor": "#fffdf5",
         "axes.edgecolor": "#5b4636",
         "axes.labelcolor": "#5b4636",
         "axes.titlecolor": "#5b4636",
