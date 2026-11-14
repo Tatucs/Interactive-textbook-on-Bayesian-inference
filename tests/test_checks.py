@@ -107,3 +107,22 @@ def test_check_metropolis_bad_shape():
 
     assert check_metropolis("x", 2, 2, 7, 10)[0] is False
     assert "Too few" in check_metropolis((np.full(50, 0.5), 0.5), 2, 2, 7, 10)[1]
+
+
+@pytest.mark.parametrize(
+    "answer, ok, fragment",
+    [
+        (0.6, True, "Correct"),
+        (0.6001, True, "Correct"),
+        (1.0, False, "true marginal"),
+        (0.36, False, "variance"),
+        (1 / 0.36, False, "Λ11 itself"),
+        (0.8, False, "Not quite"),
+        ("abc", False, "single number"),
+    ],
+)
+def test_check_meanfield_sigma(answer, ok, fragment):
+    from bayes.checks import check_meanfield_sigma
+
+    res, msg = check_meanfield_sigma(answer, rho=0.8)
+    assert res is ok and fragment in msg

@@ -1,0 +1,244 @@
+---
+title: "5. Variational inference"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+## From sampling to optimization
+
+MCMC approximates the posterior with **samples**. It is asymptotically exact,
+but it can be slow and it is hard to know when it has converged. **Variational
+inference (VI)** takes a different route: it picks a family $\mathcal{Q}$ of simple
+distributions $q_\psi(\theta)$ with **variational parameters** $\psi$, and looks for the
+member that is closest to the posterior:
+
+$$
+\psi^* = \arg\min_{\psi}\; D_{\mathrm{KL}}\big(q_\psi(\theta) \,\|\, p(\theta \mid \mathcal{D})\big),
+\qquad
+D_{\mathrm{KL}}(q \,\|\, p) = \mathbb{E}_{q}\!\left[\log \frac{q(\theta)}{p(\theta \mid \mathcal{D})}\right] \ge 0 .
+$$
+
+Inference becomes an **optimization problem**. The result is a distribution we
+can evaluate and sample instantly, rather than a chain of samples.
+
+*Bridge from the coin:* for the coin, $q$ could be any Beta, and VI would recover the
+exact $\text{Beta}(9, 5)$, which is not very instructive. To see what VI
+*approximates*, the rest of this page uses a target where the family $\mathcal{Q}$ is
+too simple: a 2-D correlated Gaussian.
+
+## The evidence lower bound (ELBO)
+
+The KL above contains the unknown posterior, and so the intractable evidence.
+Write $p(\theta \mid \mathcal{D}) = p(\theta, \mathcal{D}) / p(\mathcal{D})$ and rearrange:
+
+$$
+\log p(\mathcal{D}) \;=\; \underbrace{\mathbb{E}_{q_\psi}\!\big[\log p(\theta, \mathcal{D}) - \log q_\psi(\theta)\big]}_{\text{ELBO } Ł(\psi)}
+\;+\; D_{\mathrm{KL}}\big(q_\psi \,\|\, p(\theta \mid \mathcal{D})\big).
+$$
+
+- $\log p(\mathcal{D})$ does not depend on $\psi$. So **maximizing the ELBO $Ł$ is the same as
+  minimizing the KL**, and $Ł$ needs only the joint $p(\theta, \mathcal{D}) = p(\theta)\,p(\mathcal{D}\mid\theta)$,
+  which we can always compute.
+- Since $\mathrm{KL} \ge 0$, we get $Ł(\psi) \le \log p(\mathcal{D})$. The ELBO is a **lower bound on the
+  log evidence**, which is also useful for comparing models.
+- Two useful readings:
+  $Ł = \mathbb{E}_q[\log p(\theta, \mathcal{D})] + \mathbb{H}(q)$ (expected log joint + entropy),
+  and $Ł = \mathbb{E}_q[\log p(\mathcal{D} \mid \theta)] - D_{\mathrm{KL}}(q \,\|\, p(\theta))$
+  (fit the data, stay close to the prior).
+
+## Mean-field VI
+
+The most common family is the **mean-field** (fully factorized) approximation:
+
+$$
+q_\psi(\theta) = \prod_{j} q_j(\theta_j).
+$$
+
+Optimizing one factor at a time while keeping the others fixed gives the
+**coordinate ascent VI (CAVI)** update
+
+$$
+\log q_j(\theta_j) = \mathbb{E}_{q_{-j}}\big[\log p(\theta, \mathcal{D})\big] + \text{const},
+$$
+
+which never decreases the ELBO. (Compare it with Gibbs sampling from the MCMC
+lecture. Gibbs *samples* $\theta_j$ from its conditional; CAVI sets $q_j$ from the *expected* log
+joint over the other factors.)
+
+### Worked example: a correlated 2-D Gaussian
+
+Let the target be $p(\theta) = \mathcal{N}(\theta \mid \mu, \Sigma)$ with unit variances and correlation $\rho$:
+
+$$
+\Sigma = \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix},
+\qquad
+\Lambda = \Sigma^{-1} = \frac{1}{1 - \rho^2}\begin{pmatrix} 1 & -\rho \\ -\rho & 1 \end{pmatrix}
+\quad \text{(the precision matrix).}
+$$
+
+Fit $q(\theta) = \mathcal{N}(\theta_1 \mid m_1, \sigma_1^2)\,\mathcal{N}(\theta_2 \mid m_2, \sigma_2^2)$. Applying CAVI gives a
+closed-form answer:
+
+$$
+m_i = \mu_i - \frac{\Lambda_{ij}}{\Lambda_{ii}}\,(m_j - \mu_j)
+\;\;\xrightarrow{\text{converges}}\;\; m = \mu,
+\qquad
+\boxed{\;\sigma_i^2 = \frac{1}{\Lambda_{ii}}\;}
+$$
+
+For unit variances, $1/\Lambda_{ii} = 1 - \rho^2$, while the true marginal variance is $\Sigma_{ii} = 1$.
+The mean is found exactly, but **the variance is underestimated**, more so as $|\rho|$
+grows. The approximation is **overconfident**.
+
+## Which KL? Mode-seeking vs. mode-covering
+
+KL is not symmetric, and the direction matters:
+
+| | **Exclusive / reverse KL** $D_{\mathrm{KL}}(q \,\|\, p)$ | **Inclusive / forwards KL** $D_{\mathrm{KL}}(p \,\|\, q)$ |
+|---|---|---|
+| used by | standard VI (via the ELBO) | e.g. expectation propagation |
+| penalizes | $q$ putting mass where $p$ is small | $q$ being small where $p$ has mass |
+| behaviour | **mode-seeking, zero-forcing**: $q$ is too narrow | **mode-covering, zero-avoiding**: $q$ is too broad |
+| 2-D Gaussian optimum | $\sigma_i^2 = 1/\Lambda_{ii}$ | $\sigma_i^2 = \Sigma_{ii}$ (moment matching) |
+
+## Interactive figure: fit q by hand
+
+The filled contours are the target $p$; the orange ellipses ($1\sigma$, $2\sigma$) are your
+mean-field $q$. Move $m_1, m_2, \sigma_1, \sigma_2$ to make $\mathrm{KL}(q\,\|\,p)$ as small as possible
+(here $p$ is normalized, so $\log p(\mathcal{D}) = 0$ and $Ł = -\mathrm{KL}$). Then turn on the
+optimal solutions and increase $|\rho|$ to see the variance underestimation grow.
+"CAVI steps" runs coordinate ascent on the means, starting from your $(m_1, m_2)$.
+
+```{ojs}
+//| echo: false
+viewof rho = Inputs.range([-0.95, 0.95], {step: 0.05, value: 0.8, label: "target correlation ρ"})
+viewof m1 = Inputs.range([-2, 2], {step: 0.1, value: -1.5, label: "q mean m₁"})
+viewof m2 = Inputs.range([-2, 2], {step: 0.1, value: 1.0, label: "q mean m₂"})
+viewof s1 = Inputs.range([0.1, 1.5], {step: 0.05, value: 1.0, label: "q sd σ₁"})
+viewof s2 = Inputs.range([0.1, 1.5], {step: 0.05, value: 1.0, label: "q sd σ₂"})
+viewof cavi = Inputs.range([0, 10], {step: 1, value: 0, label: "CAVI steps"})
+viewof show_opt = Inputs.toggle({label: "show optimal q (exclusive KL)", value: false})
+viewof show_fwd = Inputs.toggle({label: "show moment-matched q (inclusive KL)", value: false})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - rho
+#|   - m1
+#|   - m2
+#|   - s1
+#|   - s2
+#|   - cavi
+#|   - show_opt
+#|   - show_fwd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from bayes.vi import target_cov, kl_gaussian, meanfield_optimum, cavi_means
+
+mu_p = np.zeros(2)
+cov_p = target_cov(float(rho))
+m_user = np.array([float(m1), float(m2)])
+sig_user = np.array([float(s1), float(s2)])
+
+def ellipse(mean, cov, r):
+    t = np.linspace(0, 2 * np.pi, 200)
+    L = np.linalg.cholesky(cov)
+    return (mean[:, None] + r * L @ np.vstack([np.cos(t), np.sin(t)]))
+
+g = np.linspace(-3, 3, 150)
+X, Y = np.meshgrid(g, g)
+dens = stats.multivariate_normal(mu_p, cov_p).pdf(np.dstack([X, Y]))
+
+fig, ax = plt.subplots(figsize=(5.2, 5))
+ax.contourf(X, Y, dens, levels=12, cmap="Blues")
+
+# CAVI on the means (variances at their optimum), starting from the user's means
+mu_opt, sig_opt = meanfield_optimum(mu_p, cov_p)
+m_q, sig_q = m_user, sig_user
+if int(cavi) > 0:
+    path = cavi_means(mu_p, cov_p, m_user, int(cavi))
+    ax.plot(path[:, 0], path[:, 1], "o-", color="C1", ms=3, lw=1, label="CAVI path of the means")
+    m_q, sig_q = path[-1], sig_opt
+
+cov_q = np.diag(sig_q**2)
+for r in (1, 2):
+    e = ellipse(m_q, cov_q, r)
+    ax.plot(e[0], e[1], color="C1", lw=2, label="your q" if r == 1 else None)
+if show_opt:
+    for r in (1, 2):
+        e = ellipse(mu_opt, np.diag(sig_opt**2), r)
+        ax.plot(e[0], e[1], "--", color="C3", lw=1.5, label="optimal q, KL(q‖p)" if r == 1 else None)
+if show_fwd:
+    for r in (1, 2):
+        e = ellipse(mu_p, np.diag(np.diag(cov_p)), r)
+        ax.plot(e[0], e[1], ":", color="k", lw=1.5, label="moment-matched q, KL(p‖q)" if r == 1 else None)
+
+kl = kl_gaussian(m_q, cov_q, mu_p, cov_p)
+kl_opt = kl_gaussian(mu_opt, np.diag(sig_opt**2), mu_p, cov_p)
+ax.set_title(f"KL(q‖p) = {kl:.3f}   (best mean-field: {kl_opt:.3f})\n"
+             f"ELBO Ł = {-kl:.3f}   optimal σᵢ = {sig_opt[0]:.2f} vs true marginal sd 1",
+             fontsize=9)
+ax.set_xlim(-3, 3); ax.set_ylim(-3, 3); ax.set_aspect("equal")
+ax.set_xlabel("θ₁"); ax.set_ylabel("θ₂")
+ax.legend(fontsize=7, loc="lower right")
+plt.tight_layout()
+plt.show()
+```
+
+## Exercise: the mean-field width
+
+The target is the 2-D Gaussian above with unit variances and correlation $\rho = 0.8$.
+What is the standard deviation $\sigma_1$ of the **optimal mean-field** factor $q_1(\theta_1)$
+under $D_{\mathrm{KL}}(q \,\|\, p)$? Give a number, or compute it with numpy.
+
+```{pyodide}
+#| exercise: ex_vi
+#| setup: true
+import numpy as np
+```
+
+```{pyodide}
+#| exercise: ex_vi
+rho = 0.8
+sigma1 = ______
+sigma1
+```
+
+```{pyodide}
+#| exercise: ex_vi
+#| check: true
+from bayes.checks import check_meanfield_sigma
+ok, msg = check_meanfield_sigma(result, rho=0.8)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_vi" }
+::: { .callout-note collapse="false" }
+Use the boxed result, $\sigma_1^2 = 1/\Lambda_{11}$, with $\Lambda = \Sigma^{-1}$. For unit variances,
+$\Lambda_{11} = 1/(1-\rho^2)$. Don't forget the square root.
+:::
+:::
+
+::: { .solution exercise="ex_vi" }
+::: { .callout-tip collapse="false" }
+$\sigma_1 = \sqrt{1 - \rho^2} = \sqrt{1 - 0.64} = 0.6$, which is smaller than the true marginal sd of 1.
+
+```python
+rho = 0.8
+Sigma = np.array([[1, rho], [rho, 1]])
+Lambda = np.linalg.inv(Sigma)
+sigma1 = 1 / np.sqrt(Lambda[0, 0])
+sigma1
+```
+:::
+:::

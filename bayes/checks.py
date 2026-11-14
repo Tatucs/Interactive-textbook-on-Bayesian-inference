@@ -114,3 +114,22 @@ def check_metropolis(answer, alpha, beta, k, n, burn_in=500, tol=0.03):
                       f"sd {s:.3f} vs {exact_sd:.3f}, acceptance rate {acc:.2f}.")
     return False, (f"The samples don't match the posterior (mean {m:.3f} vs exact {exact_mean:.3f}). "
                    "Is α the right way round: p~(proposal) over p~(current)?")
+
+
+def check_meanfield_sigma(answer, rho, tol=1e-3):
+    """VI page: optimal mean-field sd σ1 for a unit-variance 2-D Gaussian with correlation rho."""
+    try:
+        s = float(answer)
+    except (TypeError, ValueError):
+        return False, "Answer should be a single number, σ1."
+    exact = math.sqrt(1 - rho**2)
+    if abs(s - exact) <= tol:
+        return True, (f"Correct: σ1 = 1/√Λ11 = √(1 − ρ²) = {exact:.3f}, smaller than the true marginal sd 1. "
+                      "Mean-field VI underestimates the variance.")
+    if abs(s - 1.0) <= tol:
+        return False, "1 is the true marginal sd. Mean-field q under KL(q‖p) uses the precision: σ1² = 1/Λ11."
+    if abs(s - (1 - rho**2)) <= tol:
+        return False, "That is the variance σ1². The question asks for the standard deviation σ1."
+    if abs(s - 1 / (1 - rho**2)) <= tol:
+        return False, "That is Λ11 itself. The variance is its inverse, σ1² = 1/Λ11; then take the square root."
+    return False, f"Not quite ({s:g}). Invert Σ to get Λ, then σ1 = 1/√Λ11."
