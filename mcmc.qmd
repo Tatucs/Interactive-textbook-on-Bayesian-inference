@@ -1,0 +1,234 @@
+---
+title: "4. MCMC: Metropolis sampling"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+## Why sample?
+
+The coin posterior was easy: conjugacy gave $\text{Beta}(\alpha + k, \beta + n - k)$
+in closed form. Most real models have no conjugate prior, and in more than a
+few dimensions a grid is hopeless. What we usually can compute is the
+**unnormalized** posterior
+
+$$
+\tilde p(\theta) = p(\theta)\, p(\mathcal{D} \mid \theta),
+\qquad
+p^*(\theta) = p(\theta \mid \mathcal{D}) = \frac{1}{Z}\, \tilde p(\theta),
+$$
+
+where the normalizer $Z = p(\mathcal{D})$ (the evidence) is an intractable integral.
+
+**Monte Carlo** idea: if we had samples $\theta^{1}, \dots, \theta^{N_s} \sim p^*$,
+any posterior expectation can be estimated by an average,
+
+$$
+\mathbb{E}[f(\theta) \mid \mathcal{D}] \approx \frac{1}{N_s} \sum_{s=1}^{N_s} f(\theta^{s}),
+$$
+
+for example the posterior mean ($f(\theta) = \theta$) or a probability such as
+$P(\theta > 0.5 \mid \mathcal{D})$ ($f$ = indicator). Independent samples are hard to
+get, but **dependent** samples are enough. **Markov chain Monte Carlo (MCMC)**
+builds a Markov chain whose **stationary distribution** is exactly $p^*$.
+After running it for long enough, its states are (correlated) samples from the posterior.
+
+## The Metropolis–Hastings algorithm
+
+From the current state $\theta$, propose a move $\theta'$ from a **proposal
+distribution** $q(\theta' \mid \theta)$, then accept or reject it:
+
+1. Initialize $\theta^{0}$ (somewhere with $\tilde p(\theta^0) > 0$).
+2. For $s = 0, 1, 2, \dots$
+   1. Set $\theta = \theta^{s}$ and sample $\theta' \sim q(\theta' \mid \theta)$.
+   2. Compute
+      $\displaystyle \alpha = \frac{\tilde p(\theta')\, q(\theta \mid \theta')}{\tilde p(\theta)\, q(\theta' \mid \theta)}$
+      and the **acceptance probability** $A = \min(1, \alpha)$.
+   3. Sample $u \sim U(0, 1)$.
+   4. If $u \le A$, **accept**: $\theta^{s+1} = \theta'$. Otherwise **reject**: $\theta^{s+1} = \theta^{s}$.
+
+Key points:
+
+- Only the **ratio** $\tilde p(\theta') / \tilde p(\theta)$ is needed, so the
+  unknown $Z$ cancels. We never need the evidence.
+- A rejected step **repeats the current state** in the chain. Dropping it would
+  give the wrong distribution.
+- Moves "uphill" ($\tilde p(\theta') \ge \tilde p(\theta)$) are always accepted.
+  Moves "downhill" are accepted with probability equal to the density ratio. This
+  is what makes the chain spend time in each region in proportion to its posterior mass.
+
+**Random-walk Metropolis.** We use $q(\theta' \mid \theta) = \mathcal{N}(\theta' \mid \theta, \tau^2)$:
+a Gaussian step of size $\tau$ around the current point. It is symmetric,
+$q(\theta \mid \theta') = q(\theta' \mid \theta)$, so the $q$ terms cancel and
+
+$$
+\alpha = \frac{\tilde p(\theta')}{\tilde p(\theta)} .
+$$
+
+For the coin, $\tilde p(\theta) = \theta^{\alpha_0 + k - 1}(1-\theta)^{\beta_0 + n - k - 1}$
+on $(0, 1)$ and $0$ outside. (Here $\alpha_0, \beta_0$ are the prior's hyperparameters,
+not to be confused with the ratio $\alpha$.) A proposal outside $(0, 1)$ has
+$\tilde p = 0$ and is always rejected.
+
+*Implementation note (a numerical detail, not part of the algorithm):* densities
+like $\theta^{100}$ underflow quickly, so code usually works with logarithms:
+$\log \alpha = \log \tilde p(\theta') - \log \tilde p(\theta)$, and
+$u \le A \iff \log u \le \log \alpha$.
+
+## Using the samples well
+
+- **Burn-in.** The chain starts at an arbitrary $\theta^0$ and needs some steps
+  before it "forgets" it. Those first samples bias the averages, so they are discarded.
+- **Step size $\tau$.**
+  - **Too small:** almost every move is accepted, but the chain crawls, so the
+    samples are highly correlated.
+  - **Too large:** most proposals land in low-density regions and are rejected, so
+    the chain gets "sticky" and stays put.
+  - **In between:** the chain explores well. For random-walk Metropolis a
+    common rule of thumb is an acceptance rate around $0.2$–$0.5$ (about $0.234$ in
+    high dimensions). A high acceptance rate alone does not mean good mixing.
+- **Trace plot.** A plot of $\theta^s$ against $s$. A well-mixing chain looks like a
+  "hairy caterpillar" with no trends and no long flat stretches.
+- **Effective sample size.** Correlated samples carry less information than
+  independent ones:
+  $$
+  N_{\text{eff}} = \frac{N}{1 + 2\sum_{\ell \ge 1} \rho(\ell)},
+  $$
+  where $\rho(\ell)$ is the autocorrelation at lag $\ell$. The Monte Carlo error of the
+  mean behaves like that of $N_{\text{eff}}$ independent draws.
+
+## Interactive figure: tuning the sampler
+
+The target is the coin posterior with prior $\text{Beta}(2, 2)$ and $7$ heads in
+$10$ flips, whose exact answer we know from the Conjugacy page: $\text{Beta}(9, 5)$.
+Change the step size $\tau$ and compare:
+
+- $\tau = 0.01$ (too small): smooth, slowly wandering trace, tiny $N_{\text{eff}}$;
+- $\tau \approx 0.2$–$0.5$: good mixing, histogram close to the exact density;
+- $\tau = 3$ (too large): flat stretches in the trace, low acceptance rate.
+
+Start the chain far away (e.g. $\theta^0 = 0.02$) to see why we need burn-in.
+
+```{ojs}
+//| echo: false
+viewof log_tau = Inputs.range([-2, 0.5], {step: 0.1, value: -0.7, label: "log₁₀ τ (step size)"})
+viewof n_iter = Inputs.range([200, 5000], {step: 100, value: 2000, label: "iterations N"})
+viewof burn_in = Inputs.range([0, 1000], {step: 50, value: 200, label: "burn-in"})
+viewof theta0 = Inputs.range([0.01, 0.99], {step: 0.01, value: 0.5, label: "start θ⁰"})
+viewof seed = Inputs.range([0, 20], {step: 1, value: 0, label: "random seed"})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - log_tau
+#|   - n_iter
+#|   - burn_in
+#|   - theta0
+#|   - seed
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from bayes.mcmc import log_coin_posterior_unnorm, metropolis, effective_sample_size
+
+A0, B0, K, N = 2, 2, 7, 10                        # prior Beta(2, 2), 7 heads in 10 flips
+log_p_tilde = lambda t: float(log_coin_posterior_unnorm(t, A0, B0, K, N))
+
+tau = 10 ** float(log_tau)
+n_it, burn = int(n_iter), min(int(burn_in), int(n_iter) - 50)
+samples, acc = metropolis(log_p_tilde, float(theta0), tau, n_it, seed=int(seed))
+kept = samples[burn:]
+n_eff = effective_sample_size(kept)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3.2), gridspec_kw={"width_ratios": [2, 1]})
+ax1.plot(samples, lw=0.6)
+ax1.axvspan(0, burn, color="gray", alpha=0.25, label="burn-in (discarded)")
+ax1.set_ylim(0, 1)
+ax1.set_xlabel("iteration s")
+ax1.set_ylabel("θˢ")
+ax1.set_title(f"trace   τ = {tau:.3g}   acceptance rate = {acc:.2f}", fontsize=9)
+ax1.legend(fontsize=7, loc="lower right")
+
+x = np.linspace(0.001, 0.999, 400)
+ax2.hist(kept, bins=30, range=(0, 1), density=True, alpha=0.5, label="MCMC samples")
+ax2.plot(x, stats.beta.pdf(x, A0 + K, B0 + N - K), "k", lw=1.5, label="exact Beta(9, 5)")
+ax2.set_xlabel("θ")
+ax2.set_title(f"mean {kept.mean():.3f} (exact {9/14:.3f})\nN_eff ≈ {n_eff:.0f} of {kept.size}", fontsize=9)
+ax2.legend(fontsize=7)
+plt.tight_layout()
+plt.show()
+```
+
+## Exercise: write the accept/reject step
+
+Below is a random-walk Metropolis sampler for the same coin posterior, with the
+key two lines missing. `log_p_tilde(theta)` is already defined: it returns
+$\log \tilde p(\theta)$, and `-inf` outside $(0, 1)$. Fill in
+
+1. `log_alpha`, the log of $\alpha = \tilde p(\theta') / \tilde p(\theta)$, and
+2. the acceptance condition $u \le A$, written in log space.
+
+The check runs your sampler, discards 500 burn-in samples and compares the mean
+and standard deviation with the exact $\text{Beta}(9, 5)$.
+
+```{pyodide}
+#| exercise: ex_mcmc
+#| setup: true
+import numpy as np
+from bayes.mcmc import log_coin_posterior_unnorm
+
+def log_p_tilde(theta):
+    return float(log_coin_posterior_unnorm(theta, 2, 2, 7, 10))
+```
+
+```{pyodide}
+#| exercise: ex_mcmc
+def my_metropolis(log_p_tilde, theta0, tau, n_iter, seed=0):
+    rng = np.random.default_rng(seed)
+    theta = theta0
+    samples, n_accept = [], 0
+    for s in range(n_iter):
+        theta_prop = theta + tau * rng.standard_normal()  # θ' ~ N(θ, τ²)
+        log_alpha = ______                                # log α
+        u = rng.random()                                  # u ~ U(0, 1)
+        if ______:                                        # accept if u ≤ A
+            theta = theta_prop
+            n_accept += 1
+        samples.append(theta)                             # on reject, θ is repeated
+    return np.array(samples), n_accept / n_iter
+
+my_metropolis(log_p_tilde, theta0=0.5, tau=0.2, n_iter=5000)
+```
+
+```{pyodide}
+#| exercise: ex_mcmc
+#| check: true
+from bayes.checks import check_metropolis
+ok, msg = check_metropolis(result, alpha=2, beta=2, k=7, n=10, burn_in=500)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_mcmc" }
+::: { .callout-note collapse="false" }
+The log of a ratio is a difference of logs. Since $\log$ is increasing,
+$u \le \min(1, \alpha)$ is the same as $\log u \le \log \alpha$ (when $\alpha \ge 1$,
+$\log \alpha \ge 0 \ge \log u$ always holds).
+:::
+:::
+
+::: { .solution exercise="ex_mcmc" }
+::: { .callout-tip collapse="false" }
+```python
+        log_alpha = log_p_tilde(theta_prop) - log_p_tilde(theta)
+        u = rng.random()
+        if np.log(u) <= log_alpha:
+```
+:::
+:::

@@ -13,6 +13,7 @@ download. After that, other pages and later visits load faster.
 1. [Priors](priors.qmd): what we believe before seeing any data
 2. [Posteriors](posteriors.qmd): updating that belief with Bayes' rule
 3. [Conjugacy](conjugacy.qmd): exact posteriors in closed form
+4. [MCMC](mcmc.qmd): sampling the posterior with Metropolis
 
 Each page has an **interactive figure** (move the sliders) and an
 **exercise** that your browser checks automatically.

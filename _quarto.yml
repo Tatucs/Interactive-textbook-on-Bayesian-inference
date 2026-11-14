@@ -6,6 +6,7 @@ project:
     - priors.qmd
     - posteriors.qmd
     - conjugacy.qmd
+    - mcmc.qmd
 
 website:
   title: "Bayesian inference, interactively"
@@ -15,6 +16,7 @@ website:
       - priors.qmd
       - posteriors.qmd
       - conjugacy.qmd
+      - mcmc.qmd
   page-navigation: true
 
 format:

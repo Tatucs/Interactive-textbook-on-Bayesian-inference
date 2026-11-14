@@ -85,3 +85,32 @@ def check_conjugate_update(answer, alpha, beta, k, n, tol=1e-3):
     if abs(m - alpha / (alpha + beta)) <= tol:
         return False, "That is the prior mean. Use the posterior parameters."
     return False, f"Parameters are right, but the mean {m:g} is off. Use alpha / (alpha + beta)."
+
+
+def check_metropolis(answer, alpha, beta, k, n, burn_in=500, tol=0.03):
+    """MCMC page: learner's sampler output (samples, acceptance_rate) vs. exact Beta posterior."""
+    try:
+        samples, acc = answer
+        samples = np.asarray(samples, dtype=float).ravel()
+        acc = float(acc)
+    except (TypeError, ValueError):
+        return False, "Return a pair (samples, acceptance_rate), as the template does."
+    if samples.size <= burn_in + 100:
+        return False, f"Too few samples ({samples.size}); keep n_iter as in the template."
+    if acc >= 0.999:
+        return False, "Every proposal was accepted, so this is a plain random walk, not a sampler. Accept only if log(u) <= log_alpha."
+    if acc <= 0.001:
+        return False, "No proposal was ever accepted. Check the sign of log_alpha: it is log p~(θ') - log p~(θ)."
+    if np.any((samples <= 0) | (samples >= 1)):
+        return False, ("Some samples left (0, 1), where p~ = 0. Check that α = p~(θ') / p~(θ) "
+                       "(proposal over current), so such moves get α = 0 and are rejected.")
+    a_post, b_post = alpha + k, beta + n - k
+    exact_mean = a_post / (a_post + b_post)
+    exact_sd = math.sqrt(a_post * b_post / ((a_post + b_post) ** 2 * (a_post + b_post + 1)))
+    kept = samples[burn_in:]
+    m, s = kept.mean(), kept.std()
+    if abs(m - exact_mean) <= tol and abs(s - exact_sd) <= tol:
+        return True, (f"Correct: sample mean {m:.3f} vs exact {exact_mean:.3f}, "
+                      f"sd {s:.3f} vs {exact_sd:.3f}, acceptance rate {acc:.2f}.")
+    return False, (f"The samples don't match the posterior (mean {m:.3f} vs exact {exact_mean:.3f}). "
+                   "Is α the right way round: p~(proposal) over p~(current)?")

@@ -67,3 +67,43 @@ def test_check_conjugate_update(answer, ok, fragment):
 
     res, msg = check_conjugate_update(answer, 2, 2, 7, 10)
     assert res is ok and fragment in msg
+
+
+def _sampler(rule, n_iter=5000, seed=0):
+    """Learner-style Metropolis with a pluggable accept rule(log_u, log_r)."""
+    from bayes.mcmc import log_coin_posterior_unnorm
+
+    lt = lambda t: float(log_coin_posterior_unnorm(t, 2, 2, 7, 10))
+    rng = np.random.default_rng(seed)
+    x, samples, acc = 0.5, [], 0
+    for _ in range(n_iter):
+        xp = x + 0.2 * rng.standard_normal()
+        with np.errstate(invalid="ignore"):
+            log_r = lt(xp) - lt(x)
+        if rule(np.log(rng.random()), log_r, lt, xp, x):
+            x, acc = xp, acc + 1
+        samples.append(x)
+    return np.array(samples), acc / n_iter
+
+
+@pytest.mark.parametrize(
+    "rule, ok, fragment",
+    [
+        (lambda lu, lr, lt, xp, x: lu < lr, True, "Correct"),
+        (lambda lu, lr, lt, xp, x: True, False, "Every proposal"),
+        (lambda lu, lr, lt, xp, x: False, False, "No proposal"),
+        (lambda lu, lr, lt, xp, x: lu < lt(x) - lt(xp), False, "proposal over current"),
+    ],
+)
+def test_check_metropolis(rule, ok, fragment):
+    from bayes.checks import check_metropolis
+
+    res, msg = check_metropolis(_sampler(rule), 2, 2, 7, 10)
+    assert res is ok and fragment in msg, msg
+
+
+def test_check_metropolis_bad_shape():
+    from bayes.checks import check_metropolis
+
+    assert check_metropolis("x", 2, 2, 7, 10)[0] is False
+    assert "Too few" in check_metropolis((np.full(50, 0.5), 0.5), 2, 2, 7, 10)[1]
