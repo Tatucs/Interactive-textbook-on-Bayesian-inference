@@ -1,0 +1,133 @@
+---
+title: "1. Priors"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+## The running example: a coin
+
+This whole chapter studies one coin. Its probability of landing heads is
+**unknown**; call it $\theta \in [0, 1]$. We flip the coin $n$ times and count $k$ heads.
+Bayesian inference treats $\theta$ as a random quantity and asks: *given the
+flips, what do we believe about $\theta$?*
+
+Before any data arrives, we have to state what we already believe. That belief is the
+**prior** $p(\theta)$, a probability distribution over the possible values of $\theta$.
+
+## What a prior encodes
+
+- **Informative prior**: strong existing knowledge, e.g. "coins from this mint
+  are almost always fair". The mass sits close to $0.5$.
+- **Weakly informative prior**: mild preferences, e.g. "extreme biases are unlikely".
+- **Flat (uniform) prior**: every $\theta$ is equally plausible before seeing data.
+
+The prior matters most when there is little data. With many flips, the data dominates
+(see the next page).
+
+## The Beta family
+
+For a probability $\theta$, the natural choice is the **Beta distribution**:
+
+$$
+p(\theta) = \text{Beta}(\theta \mid \alpha, \beta)
+= \frac{\theta^{\alpha-1}(1-\theta)^{\beta-1}}{B(\alpha, \beta)},
+\qquad \alpha, \beta > 0 .
+$$
+
+You will need two facts about it:
+
+$$
+\mathbb{E}[\theta] = \frac{\alpha}{\alpha + \beta},
+\qquad
+\operatorname{Var}[\theta] = \frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)} .
+$$
+
+A useful way to read this: $\alpha$ and $\beta$ act like **pseudo-counts**, the heads and
+tails "seen" before the experiment. Their sum $\alpha + \beta$ is the prior's
+**strength**: the prior is worth about $\alpha + \beta$ observed flips. A larger strength
+gives a smaller variance, i.e. a more confident prior. $\text{Beta}(1, 1)$ is the flat prior.
+
+## Interactive figure
+
+Move the sliders and watch how the shape, the mean and the variance change.
+Try $\alpha = \beta$ (symmetric), $\alpha > \beta$ (biased towards heads), and
+values below $1$ (mass pushed to the edges).
+
+```{ojs}
+//| echo: false
+viewof alpha = Inputs.range([0.5, 30], {step: 0.5, value: 2, label: "α"})
+viewof beta = Inputs.range([0.5, 30], {step: 0.5, value: 2, label: "β"})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - alpha
+#|   - beta
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from bayes import beta_mean_var
+
+a, b = float(alpha), float(beta)
+mean, var = beta_mean_var(a, b)
+x = np.linspace(0.001, 0.999, 500)
+fig, ax = plt.subplots(figsize=(6, 3))
+ax.plot(x, stats.beta.pdf(x, a, b), color="C0")
+ax.fill_between(x, stats.beta.pdf(x, a, b), alpha=0.2, color="C0")
+ax.axvline(mean, ls="--", color="C1", label=f"mean = {mean:.3f}")
+ax.set_xlabel("θ (probability of heads)")
+ax.set_ylabel("density")
+ax.set_title(f"Beta({a:g}, {b:g})   sd = {np.sqrt(var):.3f}   strength α+β = {a + b:g}")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## Exercise: design a prior
+
+A colleague believes the coin lands heads about **70 %** of the time, and
+trusts this belief about as much as **10 observed flips**.
+Choose $\alpha$ and $\beta$ for a Beta prior that encodes exactly this.
+
+```{pyodide}
+#| exercise: ex_prior
+alpha = ______
+beta = ______
+(alpha, beta)
+```
+
+```{pyodide}
+#| exercise: ex_prior
+#| check: true
+from bayes.checks import check_prior_choice
+ok, msg = check_prior_choice(result, target_mean=0.7, target_strength=10)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_prior" }
+::: { .callout-note collapse="false" }
+You need two equations: the mean, $\alpha / (\alpha + \beta) = 0.7$, and the
+strength, $\alpha + \beta = 10$.
+:::
+:::
+
+::: { .solution exercise="ex_prior" }
+::: { .callout-tip collapse="false" }
+From $\alpha + \beta = 10$ and $\alpha = 0.7 \cdot 10$:
+
+```python
+alpha = 7
+beta = 3
+(alpha, beta)
+```
+:::
+:::

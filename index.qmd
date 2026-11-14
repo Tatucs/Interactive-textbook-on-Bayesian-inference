@@ -3,8 +3,16 @@ title: "Bayesian inference, interactively"
 ---
 
 An interactive textbook chapter on Bayesian inference. All Python code runs
-in your browser via [Pyodide](https://pyodide.org) — no server needed.
+in your browser through [Pyodide](https://pyodide.org), so no server is needed.
 
-Topics: priors, posteriors, conjugacy, MCMC, variational inference.
+**Note:** the first page load takes about 30 s while Python and its packages
+download. After that, other pages and later visits load faster.
 
-> Work in progress. See the [Spike](spike.qmd) page for the technical test.
+## Contents
+
+1. [Priors](priors.qmd): what we believe before seeing any data
+2. [Posteriors](posteriors.qmd): updating that belief with Bayes' rule
+3. [Conjugacy](conjugacy.qmd): exact posteriors in closed form
+
+Each page has an **interactive figure** (move the sliders) and an
+**exercise** that your browser checks automatically.

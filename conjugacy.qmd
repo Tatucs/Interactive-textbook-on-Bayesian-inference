@@ -1,0 +1,175 @@
+---
+title: "3. Conjugacy"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+## When the math works out exactly
+
+On the previous page the posterior came from a numerical grid. For some
+prior–likelihood pairs we don't need that, because the posterior has a closed form.
+
+> A prior is **conjugate** to a likelihood if the posterior belongs to the
+> **same family** as the prior. Updating then only changes the parameters.
+
+## Beta-Binomial
+
+Take a $\text{Beta}(\alpha, \beta)$ prior and $k$ heads in $n$ flips. Multiply
+the prior and the likelihood, and drop every factor that doesn't depend on $\theta$:
+
+$$
+p(\theta \mid k) \;\propto\;
+\underbrace{\theta^{k}(1-\theta)^{n-k}}_{\text{likelihood}}\;
+\underbrace{\theta^{\alpha-1}(1-\theta)^{\beta-1}}_{\text{prior}}
+= \theta^{(\alpha + k) - 1}(1-\theta)^{(\beta + n - k) - 1}.
+$$
+
+That is again the kernel of a Beta density, so
+
+$$
+\boxed{\;\theta \mid k \;\sim\; \text{Beta}(\alpha + k,\; \beta + n - k)\;}
+\qquad
+\mathbb{E}[\theta \mid k] = \frac{\alpha + k}{\alpha + \beta + n}.
+$$
+
+This is the pseudo-count reading from the Priors page made exact: **add the heads to
+$\alpha$ and the tails to $\beta$**. The posterior mean sits between the prior
+mean $\alpha/(\alpha+\beta)$ and the data proportion $k/n$, and it moves towards
+$k/n$ as $n$ grows.
+
+A useful consequence is that **sequential updating** gives the same result as one batch update.
+Today's posterior is tomorrow's prior, and updating flip by flip ends in exactly the
+same Beta as updating once with all the flips.
+
+## Normal-Normal (known noise)
+
+Second example: we measure a quantity $\mu$ with noise of known standard deviation
+$\sigma$, so $x_i \sim \mathcal{N}(\mu, \sigma^2)$, and we use the prior
+$\mu \sim \mathcal{N}(\mu_0, \tau_0^2)$. The posterior is again Normal:
+
+$$
+\frac{1}{\tau_n^2} = \frac{1}{\tau_0^2} + \frac{n}{\sigma^2},
+\qquad
+\mu_n = \tau_n^2 \left( \frac{\mu_0}{\tau_0^2} + \frac{\sum_i x_i}{\sigma^2} \right).
+$$
+
+In words: the **precisions** (inverse variances) add up, and the posterior mean is a
+precision-weighted average of the prior mean and the data.
+
+## Common conjugate pairs
+
+| Likelihood | Parameter | Conjugate prior | Posterior |
+|---|---|---|---|
+| Binomial / Bernoulli | success probability $\theta$ | Beta$(\alpha, \beta)$ | Beta$(\alpha + k, \beta + n - k)$ |
+| Normal, known $\sigma$ | mean $\mu$ | Normal$(\mu_0, \tau_0^2)$ | Normal$(\mu_n, \tau_n^2)$ (above) |
+| Poisson | rate $\lambda$ | Gamma$(a, b)$ | Gamma$(a + \sum x_i,\; b + n)$ |
+| Categorical / Multinomial | probabilities $\boldsymbol{\pi}$ | Dirichlet$(\boldsymbol{\alpha})$ | Dirichlet$(\boldsymbol{\alpha} + \text{counts})$ |
+
+Conjugacy is fast and exact, but it only covers a narrow set of models. Most real
+models have no conjugate prior, and the next two pages deal with that case.
+
+## Interactive figure: updating flip by flip
+
+A coin with true heads probability $\theta^\star$ is flipped 100 times (the sequence is fixed).
+The slider "flips seen" reveals the flips one at a time. The solid line is the
+conjugate posterior $\text{Beta}(\alpha + k, \beta + m - k)$ after $m$ flips. The dots
+are the grid posterior from the previous page, computed independently. They lie on
+the line: the two methods agree.
+
+```{ojs}
+//| echo: false
+viewof theta_true = Inputs.range([0.05, 0.95], {step: 0.05, value: 0.7, label: "true θ*"})
+viewof m = Inputs.range([0, 100], {step: 1, value: 0, label: "flips seen"})
+viewof alpha = Inputs.range([0.5, 20], {step: 0.5, value: 2, label: "prior α"})
+viewof beta = Inputs.range([0.5, 20], {step: 0.5, value: 2, label: "prior β"})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - theta_true
+#|   - m
+#|   - alpha
+#|   - beta
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from bayes import beta_binomial_posterior, grid_posterior
+
+# Fixed random stream, so moving "flips seen" reveals the same sequence.
+u = np.random.default_rng(31).random(100)
+flips = u < float(theta_true)
+m_, a0, b0 = int(m), float(alpha), float(beta)
+k_ = int(flips[:m_].sum())
+
+a_post, b_post = beta_binomial_posterior(a0, b0, k_, m_)
+theta = np.linspace(0.0005, 0.9995, 1000)
+dtheta = theta[1] - theta[0]
+grid = grid_posterior(theta, a0, b0, k_, m_) / dtheta  # independent numerical check
+
+fig, ax = plt.subplots(figsize=(6, 3.2))
+ax.plot(theta, stats.beta.pdf(theta, a0, b0), "--", color="gray", label="prior")
+ax.plot(theta, stats.beta.pdf(theta, a_post, b_post), lw=2, label=f"conjugate Beta({a_post:g}, {b_post:g})")
+ax.plot(theta[::40], grid[::40], "o", ms=4, label="grid posterior")
+ax.axvline(float(theta_true), color="C3", ls=":", label="true θ*")
+seq = "".join("H" if f else "T" for f in flips[:m_])
+ax.set_title(f"{k_} heads in {m_} flips   last: {seq[-20:] or '-'}", fontsize=9)
+ax.set_xlabel("θ (probability of heads)")
+ax.set_ylabel("density")
+ax.legend(fontsize=8)
+plt.tight_layout()
+plt.show()
+```
+
+## Exercise: update by hand
+
+The prior is $\text{Beta}(2, 2)$. You flip the coin 10 times and observe
+
+<p style="text-align:center; font-family:monospace; font-size:1.2em">H T H H T H H H T H</p>
+
+Use the conjugate update to give the posterior parameters and the posterior mean
+(as a number; 3 decimals is enough).
+
+```{pyodide}
+#| exercise: ex_conj
+alpha_post = ______
+beta_post = ______
+post_mean = ______
+(alpha_post, beta_post, post_mean)
+```
+
+```{pyodide}
+#| exercise: ex_conj
+#| check: true
+from bayes.checks import check_conjugate_update
+ok, msg = check_conjugate_update(result, alpha=2, beta=2, k=7, n=10)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_conj" }
+::: { .callout-note collapse="false" }
+Count the heads $k$ and the tails $n - k$. Then use
+$\text{Beta}(\alpha + k, \beta + n - k)$ and the mean $\alpha' / (\alpha' + \beta')$.
+:::
+:::
+
+::: { .solution exercise="ex_conj" }
+::: { .callout-tip collapse="false" }
+There are 7 heads and 3 tails, so the posterior is $\text{Beta}(9, 5)$ with mean $9/14 \approx 0.643$.
+
+```python
+alpha_post = 2 + 7
+beta_post = 2 + 3
+post_mean = alpha_post / (alpha_post + beta_post)
+(alpha_post, beta_post, post_mean)
+```
+:::
+:::

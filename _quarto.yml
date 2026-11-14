@@ -3,16 +3,19 @@ project:
   output-dir: _site
   render:
     - index.qmd
-    - spike.qmd
+    - priors.qmd
+    - posteriors.qmd
+    - conjugacy.qmd
 
 website:
   title: "Bayesian inference, interactively"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-      - href: spike.qmd
-        text: Spike
+  sidebar:
+    contents:
+      - index.qmd
+      - priors.qmd
+      - posteriors.qmd
+      - conjugacy.qmd
+  page-navigation: true
 
 format:
   live-html:

@@ -1,0 +1,153 @@
+---
+title: "2. Posteriors"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+## Bayes' rule
+
+We flip the coin $n$ times and see $k$ heads. Bayes' rule turns the prior
+into the **posterior**:
+
+$$
+\underbrace{p(\theta \mid k)}_{\text{posterior}}
+= \frac{\overbrace{p(k \mid \theta)}^{\text{likelihood}}\;\overbrace{p(\theta)}^{\text{prior}}}
+       {\underbrace{p(k)}_{\text{evidence}}}
+\;\propto\; p(k \mid \theta)\, p(\theta).
+$$
+
+- The **likelihood** says how probable the observed data is for each value of
+  $\theta$. For coin flips it is binomial:
+  $p(k \mid \theta) = \binom{n}{k}\, \theta^{k} (1-\theta)^{n-k}$.
+  The constant $\binom{n}{k}$ does not depend on $\theta$, so we can drop it.
+- The **evidence** $p(k) = \int_0^1 p(k \mid \theta)\,p(\theta)\,d\theta$ is
+  simply the number that makes the posterior integrate to 1.
+
+So the recipe is: **posterior = prior × likelihood, then normalize**.
+
+## Grid approximation
+
+When the integral can't be done by hand, we can approximate it numerically.
+Pick many evenly spaced values $\theta_1, \dots, \theta_G$ (a *grid*), then
+
+1. evaluate the prior and the likelihood at every grid point,
+2. multiply them pointwise,
+3. divide by their sum, so that the values **sum to 1**.
+
+The result is a discrete probability distribution over the grid that
+approximates the true posterior. This works for one or two parameters. In
+higher dimensions the grid gets far too large, which is why later pages need
+MCMC and variational inference.
+
+## Interactive figure
+
+The plot shows the prior (dashed), the likelihood (dotted) and the posterior (solid).
+The likelihood is rescaled to have area 1 so it fits on the same axes. Watch how:
+
+- the posterior is always a **compromise** between the prior and the likelihood,
+- as $n$ grows, the posterior follows the data and the prior matters less,
+- a strong prior (large $\alpha + \beta$) needs more data before the data wins.
+
+```{ojs}
+//| echo: false
+viewof alpha = Inputs.range([0.5, 30], {step: 0.5, value: 2, label: "prior α"})
+viewof beta = Inputs.range([0.5, 30], {step: 0.5, value: 2, label: "prior β"})
+viewof n = Inputs.range([0, 200], {step: 1, value: 10, label: "flips n"})
+viewof k = Inputs.range([0, n], {step: 1, value: Math.round(0.7 * n), label: "heads k"})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - alpha
+#|   - beta
+#|   - n
+#|   - k
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from bayes import grid_posterior, binomial_likelihood
+
+a, b, n_, k_ = float(alpha), float(beta), int(n), min(int(k), int(n))
+theta = np.linspace(0.0005, 0.9995, 1000)
+dtheta = theta[1] - theta[0]
+
+prior = stats.beta.pdf(theta, a, b)
+lik = binomial_likelihood(theta, k_, n_)
+lik_scaled = lik / (lik.sum() * dtheta)              # area 1, for display only
+post = grid_posterior(theta, a, b, k_, n_) / dtheta  # grid probabilities -> density
+
+fig, ax = plt.subplots(figsize=(6, 3.2))
+ax.plot(theta, prior, "--", label=f"prior Beta({a:g}, {b:g})")
+ax.plot(theta, lik_scaled, ":", lw=2, label=f"likelihood ({k_} heads in {n_})")
+ax.plot(theta, post, lw=2, label="posterior")
+ax.set_xlabel("θ (probability of heads)")
+ax.set_ylabel("density")
+mean = np.sum(theta * post) * dtheta
+ax.set_title(f"posterior mean = {mean:.3f}")
+ax.legend(fontsize=8)
+plt.tight_layout()
+plt.show()
+```
+
+## Exercise: compute a grid posterior
+
+The prior is $\text{Beta}(2, 2)$ and the data is $k = 7$ heads in $n = 10$ flips. The grid,
+the prior and the likelihood are already set up. Complete the last two lines so that
+`posterior` holds the grid approximation (the values must **sum to 1**).
+
+```{pyodide}
+#| exercise: ex_grid
+#| setup: true
+import numpy as np
+from scipy import stats
+```
+
+```{pyodide}
+#| exercise: ex_grid
+theta = np.linspace(0, 1, 501)
+prior = stats.beta.pdf(theta, 2, 2)
+likelihood = theta**7 * (1 - theta)**3
+
+posterior = ______
+posterior = posterior / ______
+posterior
+```
+
+```{pyodide}
+#| exercise: ex_grid
+#| check: true
+import numpy as np
+from bayes.checks import check_grid_posterior
+ok, msg = check_grid_posterior(result, np.linspace(0, 1, 501), alpha=2, beta=2, k=7, n=10)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_grid" }
+::: { .callout-note collapse="false" }
+Step 2 of the recipe is a pointwise product of two numpy arrays.
+Step 3 divides the result by its `np.sum(...)`.
+:::
+:::
+
+::: { .solution exercise="ex_grid" }
+::: { .callout-tip collapse="false" }
+```python
+theta = np.linspace(0, 1, 501)
+prior = stats.beta.pdf(theta, 2, 2)
+likelihood = theta**7 * (1 - theta)**3
+
+posterior = prior * likelihood
+posterior = posterior / np.sum(posterior)
+posterior
+```
+:::
+:::
