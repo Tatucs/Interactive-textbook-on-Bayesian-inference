@@ -1,0 +1,10 @@
+---
+title: "Bayesian inference, interactively"
+---
+
+An interactive textbook chapter on Bayesian inference. All Python code runs
+in your browser via [Pyodide](https://pyodide.org) — no server needed.
+
+Topics: priors, posteriors, conjugacy, MCMC, variational inference.
+
+> Work in progress. See the [Spike](spike.qmd) page for the technical test.

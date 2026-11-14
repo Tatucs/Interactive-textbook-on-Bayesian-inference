@@ -1,0 +1,20 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - spike.qmd
+
+website:
+  title: "Bayesian inference, interactively"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: spike.qmd
+        text: Spike
+
+format:
+  live-html:
+    theme: cosmo
+    toc: true

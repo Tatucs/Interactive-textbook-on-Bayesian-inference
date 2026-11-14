@@ -1,0 +1,92 @@
+---
+title: "Spike: tech check"
+engine: markdown
+resources:
+  - bayes
+pyodide:
+  packages:
+    - numpy
+    - scipy
+    - matplotlib
+---
+
+Temporary page that checks the stack works on the deployed site
+(roadmap §4.1): (1) slider → matplotlib, (2) graded exercise, (3) `import bayes`.
+
+## 1. Slider redraws a figure
+
+```{ojs}
+//| echo: false
+viewof k = Inputs.range([0, 20], {step: 1, value: 7, label: "heads k"})
+viewof n = Inputs.range([1, 20], {step: 1, value: 10, label: "flips n"})
+```
+
+```{pyodide}
+#| edit: false
+#| echo: false
+#| input:
+#|   - k
+#|   - n
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+k_ = min(int(k), int(n))  # keep k <= n
+a, b = 2 + k_, 2 + int(n) - k_   # Beta(2, 2) prior updated with the data
+x = np.linspace(0, 1, 400)
+fig, ax = plt.subplots(figsize=(6, 3))
+ax.plot(x, stats.beta.pdf(x, 2, 2), "--", label="prior Beta(2, 2)")
+ax.plot(x, stats.beta.pdf(x, a, b), label=f"posterior Beta({a}, {b})")
+ax.set_xlabel("θ (probability of heads)")
+ax.legend()
+plt.show()
+```
+
+## 2. `import bayes`
+
+```{pyodide}
+import sys, os
+sys.path.insert(0, os.getcwd())  # resources land in cwd; make them importable
+import bayes
+print("bayes loaded from", bayes.__file__)
+print(bayes.beta_binomial_posterior(2, 2, k=7, n=10))
+```
+
+## 3. Graded exercise
+
+Prior $\text{Beta}(2, 2)$, you observe $k = 7$ heads in $n = 10$ flips.
+Fill in the posterior parameters $(\alpha', \beta')$.
+
+```{pyodide}
+#| exercise: ex_spike
+alpha_post = 2 + ______
+beta_post = 2 + ______
+(alpha_post, beta_post)
+```
+
+```{pyodide}
+#| exercise: ex_spike
+#| check: true
+import sys, os
+sys.path.insert(0, os.getcwd())
+from bayes.checks import check_posterior_params
+ok, msg = check_posterior_params(result, alpha=2, beta=2, k=7, n=10)
+feedback = {"correct": ok, "message": msg}
+feedback
+```
+
+::: { .hint exercise="ex_spike" }
+::: { .callout-note collapse="false" }
+Heads add to α, tails add to β.
+:::
+:::
+
+::: { .solution exercise="ex_spike" }
+::: { .callout-tip collapse="false" }
+```python
+alpha_post = 2 + 7
+beta_post = 2 + 3
+(alpha_post, beta_post)
+```
+:::
+:::
